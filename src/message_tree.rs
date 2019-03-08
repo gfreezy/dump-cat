@@ -210,7 +210,7 @@ impl MessageTree {
     pub fn decode<T: Read>(buf: &mut T) -> Fallible<MessageTree> {
         let mut tree = MessageTree::default();
         decode_header(&mut tree, buf)?;
-        decode_message(&mut tree, None, buf)?;
+        decode_message(&mut tree, &mut None, buf)?;
 
         tree.message = if tree.transactions.len() > 0 {
             Message::Transaction(tree.transactions.last().unwrap().clone())
@@ -252,49 +252,26 @@ fn decode_header<T: Read>(tree: &mut MessageTree, buf: &mut T) -> Fallible<()> {
 
 fn decode_message<T: Read>(
     tree: &mut MessageTree,
-    transaction: Option<&mut InnerTransaction>,
+    transaction: &mut Option<InnerTransaction>,
     buf: &mut T,
 ) -> Fallible<()> {
     let mut chs = [0];
 
-    match transaction {
-        None => {
-            loop {
-                let size = buf.read(&mut chs)?;
-                if size == 0 {
-                    break;
-                }
-                let ch = chs[0];
-
-                match ch {
-                    b't' => decode_transaction(tree, None, buf)?,
-                    b'T' => return Ok(()),
-                    b'E' => decode_event(tree, None, buf)?,
-                    b'M' => decode_metric(tree, None, buf)?,
-                    b'H' => decode_heartbeat(tree, None, buf)?,
-                    b'L' => decode_trace(tree, None, buf)?,
-                    _ => unimplemented!("unsupported type"),
-                }
-            }
+    loop {
+        let size = buf.read(&mut chs)?;
+        if size == 0 {
+            break;
         }
-        Some(transaction) => {
-            loop {
-                let size = buf.read(&mut chs)?;
-                if size == 0 {
-                    break;
-                }
-                let ch = chs[0];
+        let ch = chs[0];
 
-                match ch {
-                    b't' => decode_transaction(tree, Some(transaction), buf)?,
-                    b'T' => return Ok(()),
-                    b'E' => decode_event(tree, Some(transaction), buf)?,
-                    b'M' => decode_metric(tree, Some(transaction), buf)?,
-                    b'H' => decode_heartbeat(tree, Some(transaction), buf)?,
-                    b'L' => decode_trace(tree, Some(transaction), buf)?,
-                    _ => unimplemented!("unsupported type"),
-                }
-            }
+        match ch {
+            b't' => decode_transaction(tree, transaction, buf)?,
+            b'T' => return Ok(()),
+            b'E' => decode_event(tree, transaction, buf)?,
+            b'M' => decode_metric(tree, transaction, buf)?,
+            b'H' => decode_heartbeat(tree, transaction, buf)?,
+            b'L' => decode_trace(tree, transaction, buf)?,
+            _ => unimplemented!("unsupported type"),
         }
     }
 
@@ -303,7 +280,7 @@ fn decode_message<T: Read>(
 
 fn decode_transaction<T: Read>(
     tree: &mut MessageTree,
-    parent_transaction: Option<&mut InnerTransaction>,
+    parent_transaction: &mut Option<InnerTransaction>,
     buf: &mut T,
 ) -> Fallible<()> {
     let ts = read_varint(buf)?;
@@ -317,8 +294,13 @@ fn decode_transaction<T: Read>(
     let mut transaction = InnerTransaction::new(ty, name);
     transaction.timestamp_in_ms = ts;
 
-    decode_message(tree, Some(&mut transaction), buf)?;
+    let mut t = Some(transaction);
+    decode_message(tree, &mut t, buf)?;
 
+    let mut transaction = match t {
+        Some(t) => t,
+        None => unreachable!()
+    };
     let status = read_string(buf)?;
     let data = read_string(buf)?;
     let duration_in_ms = read_varint(buf)?;
@@ -337,7 +319,7 @@ fn decode_transaction<T: Read>(
 
 fn decode_event<T: Read>(
     tree: &mut MessageTree,
-    parent_transaction: Option<&mut InnerTransaction>,
+    parent_transaction: &mut Option<InnerTransaction>,
     buf: &mut T,
 ) -> Fallible<()> {
     let ts = read_varint(buf)?;
@@ -359,7 +341,7 @@ fn decode_event<T: Read>(
 
 fn decode_metric<T: Read>(
     tree: &mut MessageTree,
-    parent_transaction: Option<&mut InnerTransaction>,
+    parent_transaction: &mut Option<InnerTransaction>,
     buf: &mut T,
 ) -> Fallible<()> {
     let ts = read_varint(buf)?;
@@ -380,7 +362,7 @@ fn decode_metric<T: Read>(
 
 fn decode_heartbeat<T: Read>(
     tree: &mut MessageTree,
-    parent_transaction: Option<&mut InnerTransaction>,
+    parent_transaction: &mut Option<InnerTransaction>,
     buf: &mut T,
 ) -> Fallible<()> {
     let ts = read_varint(buf)?;
@@ -401,7 +383,7 @@ fn decode_heartbeat<T: Read>(
 
 fn decode_trace<T: Read>(
     tree: &mut MessageTree,
-    parent_transaction: Option<&mut InnerTransaction>,
+    parent_transaction: &mut Option<InnerTransaction>,
     buf: &mut T,
 ) -> Fallible<()> {
     let ts = read_varint(buf)?;
