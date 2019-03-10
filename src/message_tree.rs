@@ -1,7 +1,7 @@
-use std::io::Read;
+use std::io::{Error, Read};
 use std::rc::Rc;
 
-use byteorder::{BigEndian, ReadBytesExt};
+use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use failure::Fallible;
 
 pub type MessageId = String;
@@ -212,15 +212,15 @@ impl MessageTree {
         decode_header(&mut tree, buf)?;
         decode_message(&mut tree, &mut None, buf)?;
 
-        tree.message = if tree.transactions.len() > 0 {
+        tree.message = if !tree.transactions.is_empty() {
             Message::Transaction(tree.transactions.last().unwrap().clone())
-        } else if tree.events.len() > 0 {
+        } else if !tree.events.is_empty() {
             Message::Event(tree.events.last().unwrap().clone())
-        } else if tree.metrics.len() > 0 {
+        } else if !tree.metrics.is_empty() {
             Message::Metric(tree.metrics.last().unwrap().clone())
-        } else if tree.heartbeats.len() > 0 {
+        } else if !tree.heartbeats.is_empty() {
             Message::Heartbeat(tree.heartbeats.last().unwrap().clone())
-        } else if tree.traces.len() > 0 {
+        } else if !tree.traces.is_empty() {
             Message::Trace(tree.traces.last().unwrap().clone())
         } else {
             unreachable!()
@@ -299,7 +299,7 @@ fn decode_transaction<T: Read>(
 
     let mut transaction = match t {
         Some(t) => t,
-        None => unreachable!()
+        None => unreachable!(),
     };
     let status = read_string(buf)?;
     let data = read_string(buf)?;
@@ -439,9 +439,16 @@ pub fn read_varint<T: Read>(data: &mut T) -> Fallible<u64> {
     }
 }
 
-pub fn read_data<T: Read>(reader: &mut T) -> Fallible<Vec<u8>> {
-    let length = reader.read_i32::<BigEndian>()?;
+pub fn try_read_data<T: Read>(reader: &mut T) -> Result<Option<Vec<u8>>, Error> {
+    let mut buf = [0; 4];
+    let size = reader.read(&mut buf)?;
+    if size == 0 {
+        return Ok(None);
+    } else if size != 4 {
+        panic!("read length error")
+    }
+    let length = BigEndian::read_i32(&buf);
     let mut buf = vec![0; length as usize];
     reader.read_exact(&mut buf)?;
-    Ok(buf)
+    Ok(Some(buf))
 }
