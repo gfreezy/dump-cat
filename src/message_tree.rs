@@ -4,24 +4,25 @@ use std::rc::Rc;
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use failure::Fallible;
 
-pub type MessageId = String;
+pub type MessageId = Text;
+pub type Text = Vec<u8>;
 
 #[derive(Debug, Default, Clone)]
 pub struct InnerEvent {
-    pub status: String,
-    pub ty: String,
-    pub name: String,
+    pub status: Text,
+    pub ty: Text,
+    pub name: Text,
     pub timestamp_in_ms: u64,
-    pub data: String,
+    pub data: Text,
 }
 
 impl InnerEvent {
     fn new(
-        ty: impl Into<String>,
-        name: impl Into<String>,
+        ty: impl Into<Text>,
+        name: impl Into<Text>,
         ts: u64,
-        status: impl Into<String>,
-        data: impl Into<String>,
+        status: impl Into<Text>,
+        data: impl Into<Text>,
     ) -> Self {
         let mut event = Self::default();
         event.ty = ty.into();
@@ -37,18 +38,18 @@ pub type Event = Rc<InnerEvent>;
 
 #[derive(Debug, Default, Clone)]
 pub struct InnerTransaction {
-    pub status: String,
-    pub ty: String,
-    pub name: String,
+    pub status: Text,
+    pub ty: Text,
+    pub name: Text,
     pub timestamp_in_ms: u64,
-    pub data: String,
+    pub data: Text,
     pub duration_in_ms: u64,
     pub children: Vec<Message>,
     pub duration_start: u64,
 }
 
 impl InnerTransaction {
-    fn new(ty: impl Into<String>, name: impl Into<String>) -> Self {
+    fn new(ty: impl Into<Text>, name: impl Into<Text>) -> Self {
         let mut transaction = Self::default();
         transaction.ty = ty.into();
         transaction.name = name.into();
@@ -65,20 +66,20 @@ pub type Transaction = Rc<InnerTransaction>;
 
 #[derive(Debug, Default, Clone)]
 pub struct InnerHeartbeat {
-    pub status: String,
-    pub ty: String,
-    pub name: String,
+    pub status: Text,
+    pub ty: Text,
+    pub name: Text,
     pub timestamp_in_ms: u64,
-    pub data: String,
+    pub data: Text,
 }
 
 impl InnerHeartbeat {
     fn new(
-        ty: impl Into<String>,
-        name: impl Into<String>,
+        ty: impl Into<Text>,
+        name: impl Into<Text>,
         ts: u64,
-        status: impl Into<String>,
-        data: impl Into<String>,
+        status: impl Into<Text>,
+        data: impl Into<Text>,
     ) -> Self {
         let mut heartbeat = Self::default();
         heartbeat.ty = ty.into();
@@ -94,20 +95,20 @@ pub type Heartbeat = Rc<InnerHeartbeat>;
 
 #[derive(Debug, Default, Clone)]
 pub struct InnerMetric {
-    pub status: String,
-    pub ty: String,
-    pub name: String,
+    pub status: Text,
+    pub ty: Text,
+    pub name: Text,
     pub timestamp_in_ms: u64,
-    pub data: String,
+    pub data: Text,
 }
 
 impl InnerMetric {
     fn new(
-        ty: impl Into<String>,
-        name: impl Into<String>,
+        ty: impl Into<Text>,
+        name: impl Into<Text>,
         ts: u64,
-        status: impl Into<String>,
-        data: impl Into<String>,
+        status: impl Into<Text>,
+        data: impl Into<Text>,
     ) -> Self {
         let mut metric = Self::default();
         metric.ty = ty.into();
@@ -123,20 +124,20 @@ pub type Metric = Rc<InnerMetric>;
 
 #[derive(Debug, Default, Clone)]
 pub struct InnerTrace {
-    pub status: String,
-    pub ty: String,
-    pub name: String,
+    pub status: Text,
+    pub ty: Text,
+    pub name: Text,
     pub timestamp_in_ms: u64,
-    pub data: String,
+    pub data: Text,
 }
 
 impl InnerTrace {
     fn new(
-        ty: impl Into<String>,
-        name: impl Into<String>,
+        ty: impl Into<Text>,
+        name: impl Into<Text>,
         ts: u64,
-        status: impl Into<String>,
-        data: impl Into<String>,
+        status: impl Into<Text>,
+        data: impl Into<Text>,
     ) -> Self {
         let mut trace = Self::default();
         trace.ty = ty.into();
@@ -167,17 +168,17 @@ impl Default for Message {
 
 #[derive(Debug, Default, Clone)]
 pub struct MessageTree {
-    pub domain: String,
-    pub hostname: String,
-    pub ip_address: String,
+    pub domain: Text,
+    pub hostname: Text,
+    pub ip_address: Text,
     pub message: Message,
-    pub message_id: String,
-    pub parent_message_id: String,
-    pub root_message_id: String,
-    pub session_token: String,
-    pub thread_group_name: String,
-    pub thread_id: String,
-    pub thread_name: String,
+    pub message_id: Text,
+    pub parent_message_id: Text,
+    pub root_message_id: Text,
+    pub session_token: Text,
+    pub thread_group_name: Text,
+    pub thread_id: Text,
+    pub thread_name: Text,
     pub format_message_id: MessageId,
     pub discard: bool,
     pub process_loss: bool,
@@ -230,7 +231,7 @@ impl MessageTree {
     }
 }
 
-const ID: &str = "NT1";
+const ID: &[u8] = b"NT1";
 
 fn decode_header<T: Read>(tree: &mut MessageTree, buf: &mut T) -> Fallible<()> {
     let version = read_version(buf)?;
@@ -287,8 +288,8 @@ fn decode_transaction<T: Read>(
     let ty = read_string(buf)?;
     let mut name = read_string(buf)?;
 
-    if ty == "System" || name.starts_with("UploadMetric") {
-        name = "UploadMetric".to_string();
+    if ty == b"System" || name.starts_with(b"UploadMetric") {
+        name = b"UploadMetric".to_vec();
     }
 
     let mut transaction = InnerTransaction::new(ty, name);
@@ -402,21 +403,21 @@ fn decode_trace<T: Read>(
     Ok(())
 }
 
-fn read_version<T: Read>(buf: &mut T) -> Fallible<String> {
+fn read_version<T: Read>(buf: &mut T) -> Fallible<Text> {
     let mut data = vec![0; 3];
     buf.read_exact(&mut data)?;
-    Ok(String::from_utf8(data)?)
+    Ok(data)
 }
 
-fn read_string<T: Read>(buf: &mut T) -> Fallible<String> {
+fn read_string<T: Read>(buf: &mut T) -> Fallible<Text> {
     let len = read_varint(buf)?;
     if len == 0 {
-        return Ok("".to_string());
+        return Ok(Vec::new());
     }
     let mut b = vec![0; len as usize];
     buf.read_exact(&mut b)?;
 
-    Ok(String::from_utf8(b)?)
+    Ok(b)
 }
 
 /// https://developers.google.com/protocol-buffers/docs/encoding#varints
