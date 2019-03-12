@@ -52,7 +52,7 @@ impl MessageTreeIterator {
             None => {
                 self.snappy_reader = None;
                 return Ok(());
-            },
+            }
             Some(b) => b,
         };
         let mut snappy_reader = SnappyReader::new(snappy_block);

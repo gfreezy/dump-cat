@@ -11,7 +11,6 @@ use message_tree_dumper::MessageTreeDumper;
 mod message_tree;
 mod message_tree_dumper;
 
-
 #[derive(Debug, StructOpt)]
 #[structopt(name = "dump-cat", about = "Dump cat logviews.")]
 struct Opt {
@@ -22,7 +21,6 @@ struct Opt {
     #[structopt(parse(from_os_str))]
     path: PathBuf,
 }
-
 
 fn main() -> Fallible<()> {
     let opt: Opt = Opt::from_args();
