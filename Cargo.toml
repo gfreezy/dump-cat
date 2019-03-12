@@ -10,6 +10,7 @@ failure = "0.1.5"
 snap = "0.2"
 time = "0.1.42"
 bytes = "0.4.12"
+structopt = "0.2.15"
 
 [profile.release]
-debug = true
+#debug = true

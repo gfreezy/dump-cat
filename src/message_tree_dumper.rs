@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{BufReader, Cursor, Error, Read, Write};
+use std::io::{BufReader, Cursor, Error, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
 use byteorder::BigEndian;
@@ -49,7 +49,10 @@ impl MessageTreeIterator {
 
     fn read_next_block(&mut self) -> Fallible<()> {
         let snappy_block = match try_read_data(&mut self.file_reader)? {
-            None => return Ok(()),
+            None => {
+                self.snappy_reader = None;
+                return Ok(());
+            },
             Some(b) => b,
         };
         let mut snappy_reader = SnappyReader::new(snappy_block);

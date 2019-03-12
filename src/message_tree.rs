@@ -24,13 +24,14 @@ impl InnerEvent {
         status: impl Into<Text>,
         data: impl Into<Text>,
     ) -> Self {
-        let mut event = Self::default();
-        event.ty = ty.into();
-        event.name = name.into();
-        event.timestamp_in_ms = ts;
-        event.status = status.into();
-        event.data = data.into();
-        event
+        InnerEvent {
+            ty: ty.into(),
+            name: name.into(),
+            timestamp_in_ms: ts,
+            status: status.into(),
+            data: data.into(),
+            ..Default::default()
+        }
     }
 }
 
@@ -50,11 +51,12 @@ pub struct InnerTransaction {
 
 impl InnerTransaction {
     fn new(ty: impl Into<Text>, name: impl Into<Text>) -> Self {
-        let mut transaction = Self::default();
-        transaction.ty = ty.into();
-        transaction.name = name.into();
-        transaction.timestamp_in_ms = time::precise_time_ns() / 1_000_000;
-        transaction
+        InnerTransaction {
+            ty: ty.into(),
+            name: name.into(),
+            timestamp_in_ms: time::precise_time_ns() / 1_000_000,
+            ..Default::default()
+        }
     }
 
     pub fn add_child(&mut self, message: Message) {
@@ -81,13 +83,14 @@ impl InnerHeartbeat {
         status: impl Into<Text>,
         data: impl Into<Text>,
     ) -> Self {
-        let mut heartbeat = Self::default();
-        heartbeat.ty = ty.into();
-        heartbeat.name = name.into();
-        heartbeat.timestamp_in_ms = ts;
-        heartbeat.status = status.into();
-        heartbeat.data = data.into();
-        heartbeat
+        InnerHeartbeat {
+            ty: ty.into(),
+            name: name.into(),
+            timestamp_in_ms: ts,
+            status: status.into(),
+            data: data.into(),
+            ..Default::default()
+        }
     }
 }
 
@@ -110,13 +113,14 @@ impl InnerMetric {
         status: impl Into<Text>,
         data: impl Into<Text>,
     ) -> Self {
-        let mut metric = Self::default();
-        metric.ty = ty.into();
-        metric.name = name.into();
-        metric.timestamp_in_ms = ts;
-        metric.status = status.into();
-        metric.data = data.into();
-        metric
+        InnerMetric {
+            ty: ty.into(),
+            name: name.into(),
+            timestamp_in_ms: ts,
+            status: status.into(),
+            data: data.into(),
+            ..Default::default()
+        }
     }
 }
 
@@ -139,13 +143,14 @@ impl InnerTrace {
         status: impl Into<Text>,
         data: impl Into<Text>,
     ) -> Self {
-        let mut trace = Self::default();
-        trace.ty = ty.into();
-        trace.name = name.into();
-        trace.timestamp_in_ms = ts;
-        trace.status = status.into();
-        trace.data = data.into();
-        trace
+        InnerTrace {
+            ty: ty.into(),
+            name: name.into(),
+            timestamp_in_ms: ts,
+            status: status.into(),
+            data: data.into(),
+            ..Default::default()
+        }
     }
 }
 
@@ -259,7 +264,7 @@ fn decode_message<T: Read>(
     let mut chs = [0];
 
     loop {
-        let size = buf.read(&mut chs)?;
+        let size = buf.read(&mut chs[..])?;
         if size == 0 {
             break;
         }
