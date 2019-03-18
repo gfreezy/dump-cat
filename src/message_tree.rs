@@ -5,7 +5,7 @@ use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use failure::Fallible;
 
 pub type MessageId = Text;
-pub type Text = Vec<u8>;
+pub type Text = String;
 
 #[derive(Debug, Default, Clone)]
 pub struct InnerEvent {
@@ -236,7 +236,7 @@ impl MessageTree {
     }
 }
 
-const ID: &[u8] = b"NT1";
+const ID: &str = "NT1";
 
 fn decode_header<T: Read>(tree: &mut MessageTree, buf: &mut T) -> Fallible<()> {
     let version = read_version(buf)?;
@@ -293,8 +293,8 @@ fn decode_transaction<T: Read>(
     let ty = read_string(buf)?;
     let mut name = read_string(buf)?;
 
-    if ty == b"System" || name.starts_with(b"UploadMetric") {
-        name = b"UploadMetric".to_vec();
+    if ty == "System" || name.starts_with("UploadMetric") {
+        name = "UploadMetric".to_string();
     }
 
     let mut transaction = InnerTransaction::new(ty, name);
@@ -411,18 +411,18 @@ fn decode_trace<T: Read>(
 fn read_version<T: Read>(buf: &mut T) -> Fallible<Text> {
     let mut data = vec![0; 3];
     buf.read_exact(&mut data)?;
-    Ok(data)
+    Ok(String::from_utf8(data)?)
 }
 
 fn read_string<T: Read>(buf: &mut T) -> Fallible<Text> {
     let len = read_varint(buf)?;
     if len == 0 {
-        return Ok(Vec::new());
+        return Ok("".to_string());
     }
     let mut b = vec![0; len as usize];
     buf.read_exact(&mut b)?;
 
-    Ok(b)
+    Ok(String::from_utf8(b)?)
 }
 
 /// https://developers.google.com/protocol-buffers/docs/encoding#varints

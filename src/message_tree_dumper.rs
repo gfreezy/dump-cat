@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{BufReader, Cursor, Error, Read, Seek, SeekFrom, Write};
+use std::io::{BufReader, Cursor, Error, Read, Write};
 use std::path::Path;
 
 use byteorder::BigEndian;
