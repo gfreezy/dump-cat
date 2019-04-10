@@ -6,8 +6,9 @@ use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use bytes::BytesMut;
 use failure::Fallible;
+use log::debug;
 
-use crate::message_tree::{MessageTree, try_read_data};
+use crate::message_tree::{try_read_data, MessageTree};
 
 pub struct MessageTreeDumper {
     file_reader: BufReader<File>,
@@ -18,6 +19,7 @@ impl MessageTreeDumper {
         let mut file_reader = BufReader::with_capacity(1024 * 1024, File::open(path)?);
         let magic_number = file_reader.read_i32::<BigEndian>()?;
         assert_eq!(magic_number, -1);
+        debug!("magic number: {}", magic_number);
 
         Ok(MessageTreeDumper { file_reader })
     }
@@ -131,7 +133,7 @@ impl Read for SnappyReader {
                 break;
             }
 
-            if self.buf.len() == 0 {
+            if self.buf.is_empty() {
                 return Ok(0);
             }
         }

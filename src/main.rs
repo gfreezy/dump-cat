@@ -1,8 +1,8 @@
-#[macro_use]
 extern crate structopt;
 
 use std::path::PathBuf;
 
+use evalexpr::*;
 use failure::Fallible;
 use structopt::StructOpt;
 
@@ -14,23 +14,62 @@ mod message_tree_dumper;
 #[derive(Debug, StructOpt)]
 #[structopt(name = "dump-cat", about = "Dump cat logviews.")]
 struct Opt {
-    /// Activate debug mode
     #[structopt(short = "n", long = "number")]
     num: Option<usize>,
+    #[structopt(
+        short = "q",
+        long = "query",
+        help = "variables: [status|ty|name|timestamp_in_ms|transaction.duration_in_ms|transaction.duration_start]"
+    )]
+    query: Option<String>,
     /// Input file
     #[structopt(parse(from_os_str))]
     path: PathBuf,
 }
 
 fn main() -> Fallible<()> {
+    env_logger::init();
+
     let opt: Opt = Opt::from_args();
     let dumper = MessageTreeDumper::open(opt.path)?;
-    let iter = dumper.into_iter();
-    let count = if let Some(num) = opt.num {
-        iter.take(num).count()
-    } else {
-        iter.count()
-    };
-    println!("count: {}", count);
+
+    let query = opt.query;
+
+    let precompiled = query.map(|q| build_operator_tree(&q)).transpose()?;
+
+    let mut count = opt.num.unwrap_or(usize::max_value());
+
+    for tree in dumper {
+        let mut context = HashMapContext::new();
+        context.set_value("status".into(), tree.message.status().as_str().into())?;
+        context.set_value("ty".into(), tree.message.ty().as_str().into())?;
+        context.set_value("name".into(), tree.message.name().as_str().into())?;
+        context.set_value("timestamp_in_ms".into(), (tree.message.ts() as i64).into())?;
+        if let Some(duration) = tree.message.duration_in_ms() {
+            context.set_value(
+                "transaction.duration_in_ms".into(),
+                (duration as i64).into(),
+            )?;
+        }
+        if let Some(start) = tree.message.duration_start() {
+            context.set_value("transaction.duration_start".into(), (start as i64).into())?;
+        }
+
+        let match_ret = if let Some(expr) = &precompiled {
+            expr.eval_boolean_with_context(&context)?
+        } else {
+            true
+        };
+
+        if match_ret {
+            if count > 0 {
+                println!("{}", tree.message);
+                count -= 1;
+            } else {
+                break;
+            }
+        }
+    }
+
     Ok(())
 }

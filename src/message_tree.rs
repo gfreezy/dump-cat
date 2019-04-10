@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::io::{Error, Read};
 use std::rc::Rc;
 
@@ -30,7 +31,6 @@ impl InnerEvent {
             timestamp_in_ms: ts,
             status: status.into(),
             data: data.into(),
-            ..Default::default()
         }
     }
 }
@@ -89,7 +89,6 @@ impl InnerHeartbeat {
             timestamp_in_ms: ts,
             status: status.into(),
             data: data.into(),
-            ..Default::default()
         }
     }
 }
@@ -119,7 +118,6 @@ impl InnerMetric {
             timestamp_in_ms: ts,
             status: status.into(),
             data: data.into(),
-            ..Default::default()
         }
     }
 }
@@ -149,7 +147,6 @@ impl InnerTrace {
             timestamp_in_ms: ts,
             status: status.into(),
             data: data.into(),
-            ..Default::default()
         }
     }
 }
@@ -163,6 +160,118 @@ pub enum Message {
     Heartbeat(Heartbeat),
     Metric(Metric),
     Trace(Trace),
+}
+
+impl Message {
+    pub fn status(&self) -> &Text {
+        match self {
+            Message::Event(e) => &e.status,
+            Message::Transaction(e) => &e.status,
+            Message::Trace(e) => &e.status,
+            Message::Heartbeat(e) => &e.status,
+            Message::Metric(e) => &e.status,
+        }
+    }
+
+    pub fn ty(&self) -> &Text {
+        match self {
+            Message::Event(e) => &e.ty,
+            Message::Transaction(e) => &e.ty,
+            Message::Trace(e) => &e.ty,
+            Message::Heartbeat(e) => &e.ty,
+            Message::Metric(e) => &e.ty,
+        }
+    }
+
+    pub fn name(&self) -> &Text {
+        match self {
+            Message::Event(e) => &e.name,
+            Message::Transaction(e) => &e.name,
+            Message::Trace(e) => &e.name,
+            Message::Heartbeat(e) => &e.name,
+            Message::Metric(e) => &e.name,
+        }
+    }
+
+    pub fn ts(&self) -> i32 {
+        (match self {
+            Message::Event(e) => e.timestamp_in_ms / 1000,
+            Message::Transaction(e) => e.timestamp_in_ms / 1000,
+            Message::Trace(e) => e.timestamp_in_ms / 1000,
+            Message::Heartbeat(e) => e.timestamp_in_ms / 1000,
+            Message::Metric(e) => e.timestamp_in_ms / 1000,
+        }) as i32
+    }
+
+    pub fn duration_in_ms(&self) -> Option<u64> {
+        match self {
+            Message::Transaction(e) => Some(e.duration_in_ms),
+            _ => None,
+        }
+    }
+
+    pub fn duration_start(&self) -> Option<u64> {
+        match self {
+            Message::Transaction(e) => Some(e.duration_start),
+            _ => None,
+        }
+    }
+}
+
+impl Display for Message {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+        use self::Message::*;
+
+        match self {
+            Event(e) => f
+                .debug_struct("Event")
+                .field("timestamp_in_ms", &e.timestamp_in_ms)
+                .field("ty", &e.ty)
+                .field("name", &e.name)
+                .field("status", &e.status)
+                .field("data", &e.data)
+                .finish(),
+            Transaction(e) => f
+                .debug_struct("Transaction")
+                .field("timestamp_in_ms", &e.timestamp_in_ms)
+                .field("ty", &e.ty)
+                .field("name", &e.name)
+                .field("status", &e.status)
+                .field("duration_start", &e.duration_start)
+                .field("duration_in_ms", &e.duration_in_ms)
+                .field("data", &e.data)
+                .field(
+                    "children",
+                    &if e.children.is_empty() { "[]" } else { "[...]" },
+                )
+                .finish(),
+            Heartbeat(e) => f
+                .debug_struct("Heartbeat")
+                .field("timestamp_in_ms", &e.timestamp_in_ms)
+                .field("ty", &e.ty)
+                .field("name", &e.name)
+                .field("status", &e.status)
+                .field("data", &e.data)
+                .finish(),
+            Metric(e) => f
+                .debug_struct("Metric")
+                .field("timestamp_in_ms", &e.timestamp_in_ms)
+                .field("ty", &e.ty)
+                .field("name", &e.name)
+                .field("status", &e.status)
+                .field("data", &e.data)
+                .finish(),
+            Trace(e) => f
+                .debug_struct("Trace")
+                .field("timestamp_in_ms", &e.timestamp_in_ms)
+                .field("ty", &e.ty)
+                .field("name", &e.name)
+                .field("status", &e.status)
+                .field("data", &e.data)
+                .finish(),
+        }?;
+        Ok(())
+    }
 }
 
 impl Default for Message {
