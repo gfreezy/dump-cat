@@ -12,6 +12,10 @@ cargo build --release
 ## Usage
 
 ```bash
+dump-cat 0.1.0
+gfreezy <gfreezy@gmail.com>
+Dump cat logviews.
+
 USAGE:
     dump-cat [OPTIONS] <path>
 
@@ -20,10 +24,12 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -n, --number <num>    Activate debug mode
+    -n, --number <num>     
+    -q, --query <query>    variables: [status|ty|name|ts|transaction.duration_in_ms|transaction.duration_start]
 
 ARGS:
     <path>    Input file
+
 ```
 
 ## Contributing
