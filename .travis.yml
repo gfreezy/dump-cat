@@ -13,7 +13,7 @@ matrix:
 script:
   - mkdir -p artifacts
   - cargo test --verbose --all
-  - cargo build
+  - cargo build --release
   - cp target/release/dump-cat artifacts/dump-cat-$TRAVIS_OS_NAME
 before_deploy:
   - export TRAVIS_TAG="preview"

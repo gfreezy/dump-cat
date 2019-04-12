@@ -4,11 +4,12 @@ use std::rc::Rc;
 
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use failure::Fallible;
+use serde::{Deserialize, Serialize};
 
 pub type MessageId = Text;
 pub type Text = String;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct InnerEvent {
     pub status: Text,
     pub ty: Text,
@@ -37,7 +38,7 @@ impl InnerEvent {
 
 pub type Event = Rc<InnerEvent>;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct InnerTransaction {
     pub status: Text,
     pub ty: Text,
@@ -66,7 +67,7 @@ impl InnerTransaction {
 
 pub type Transaction = Rc<InnerTransaction>;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct InnerHeartbeat {
     pub status: Text,
     pub ty: Text,
@@ -95,7 +96,7 @@ impl InnerHeartbeat {
 
 pub type Heartbeat = Rc<InnerHeartbeat>;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct InnerMetric {
     pub status: Text,
     pub ty: Text,
@@ -124,7 +125,7 @@ impl InnerMetric {
 
 pub type Metric = Rc<InnerMetric>;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct InnerTrace {
     pub status: Text,
     pub ty: Text,
@@ -153,7 +154,7 @@ impl InnerTrace {
 
 pub type Trace = Rc<InnerTrace>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Message {
     Event(Event),
     Transaction(Transaction),

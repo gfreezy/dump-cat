@@ -22,6 +22,8 @@ struct Opt {
         help = "variables: [status|ty|name|timestamp_in_ms|transaction.duration_in_ms|transaction.duration_start]"
     )]
     query: Option<String>,
+    #[structopt(long = "json", help = "output as json")]
+    json: bool,
     /// Input file
     #[structopt(parse(from_os_str))]
     path: PathBuf,
@@ -34,7 +36,6 @@ fn main() -> Fallible<()> {
     let dumper = MessageTreeDumper::open(opt.path)?;
 
     let query = opt.query;
-
     let precompiled = query.map(|q| build_operator_tree(&q)).transpose()?;
 
     let mut count = opt.num.unwrap_or(usize::max_value());
@@ -63,7 +64,11 @@ fn main() -> Fallible<()> {
 
         if match_ret {
             if count > 0 {
-                println!("{}", tree.message);
+                if opt.json {
+                    println!("{}", serde_json::to_string(&tree.message)?);
+                } else {
+                    println!("{}", tree.message);
+                }
                 count -= 1;
             } else {
                 break;

@@ -12,20 +12,22 @@ cargo build --release
 ## Usage
 
 ```
-dump-cat 0.1.0
+dump-cat 0.1.1
 gfreezy <gfreezy@gmail.com>
 Dump cat logviews.
 
 USAGE:
-    dump-cat [OPTIONS] <path>
+    dump-cat [FLAGS] [OPTIONS] <path>
 
 FLAGS:
     -h, --help       Prints help information
+        --json       output as json
     -V, --version    Prints version information
 
 OPTIONS:
     -n, --number <num>     
-    -q, --query <query>    variables: [status|ty|name|ts|transaction.duration_in_ms|transaction.duration_start]
+    -q, --query <query>    variables:
+                           [status|ty|name|timestamp_in_ms|transaction.duration_in_ms|transaction.duration_start]
 
 ARGS:
     <path>    Input file
