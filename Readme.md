@@ -1,4 +1,4 @@
-# Dump-cat
+# Dump-cat [![Build Status](https://travis-ci.com/gfreezy/dump-cat.svg?branch=master)](https://travis-ci.com/gfreezy/dump-cat)
 Dump-cat is a tool for dumping [cat](https://github.com/dianping/cat) logviews.
 
 ## Installation
