@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use std::io::{Error, Read};
 use std::rc::Rc;
@@ -542,12 +543,12 @@ pub fn read_varint<T: Read>(data: &mut T) -> Fallible<u64> {
     loop {
         let b = data.read_u8()?;
         if b < 0b1000_0000 {
-            return match (b as u64).checked_shl(shift) {
+            return match u64::try_from(b)?.checked_shl(shift) {
                 None => Ok(0),
                 Some(b) => Ok(n | b),
             };
         }
-        match ((b as u64) & 0b0111_1111).checked_shl(shift) {
+        match (u64::try_from(b)? & 0b0111_1111).checked_shl(shift) {
             None => return Ok(0),
             Some(b) => n |= b,
         }

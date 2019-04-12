@@ -1,5 +1,6 @@
 extern crate structopt;
 
+use std::convert::TryFrom;
 use std::path::PathBuf;
 
 use evalexpr::*;
@@ -45,7 +46,10 @@ fn main() -> Fallible<()> {
         context.set_value("status".into(), tree.message.status().as_str().into())?;
         context.set_value("ty".into(), tree.message.ty().as_str().into())?;
         context.set_value("name".into(), tree.message.name().as_str().into())?;
-        context.set_value("timestamp_in_ms".into(), (tree.message.ts() as i64).into())?;
+        context.set_value(
+            "timestamp_in_ms".into(),
+            i64::try_from(tree.message.ts())?.into(),
+        )?;
         if let Some(duration) = tree.message.duration_in_ms() {
             context.set_value(
                 "transaction.duration_in_ms".into(),
