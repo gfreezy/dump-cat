@@ -1,0 +1,32 @@
+if: tag IS blank
+
+language: rust
+sudo: false
+rust:
+  - stable
+cache: cargo
+matrix:
+  include:
+    - name: "macOS Build"
+      os: osx
+
+    - name: "Linux Build"
+      os: linux
+script:
+  - mkdir -p artifacts
+  - cargo test --verbose --all
+  - cargo build --release
+  - cp target/release/dump-cat artifacts/dump-cat-$TRAVIS_OS_NAME
+
+before_deploy:
+  - export TRAVIS_TAG="preview"
+
+deploy:
+  provider: releases
+  api_key:
+    secure: gFB6rc2Ag5LvUa08tztj7+QZ6fFfgHgGWpFoaRZKTvjdyQBhQVa6qbRjVoNEYd6y0KWiQxoYYeF1APr54Rb3yEyINSyCNUnYRIUWgFaxqfbtDuQDgJuREGxboVMSkIykhPTUCzYU8POUlop633wUXDTIl05nTN8AuxdwghER+iw6lVixiICvwL4PU6hG1liJIVmoWvM52YfhtE/94adDu/7T9N4UtWDQQMVUNYyEJrjbCAV0YEVW/7vv04i0SuC4npbarn7A1kqE+pA2kUesmN8khcwN6P653/809522KsT3aFmVXB48dL6ksnpzvNNaWQrklY9JW5f43tLbHutaIhYUxI5itmKoB66uYvlPb9YQHoVNUVkeZ4SUqI2VO9yq5YJt3tfVqSzkulzagiQuPSnbcHekz4OOs67xs1qEOEiaAdKxbHNvVy6kB3Ke4Hmm6S46jene1bea+E2yIaPYmK2Bjr4FVQ/YlU7ABK2Vb+8vS9mx8l/ljDFtvqO8MdpiiRIh0Fb9sHm8vNRce1Nf4lY6WfyYUoTnRWIk1gANJAAxLNwUXg6F+O0Oq6Nccn/q98uhB+y3J5Hi5I+BvYPpsFZAls+YbKFZOGzoX20IE/tzrVneq0zqDriKfDCx4mAdPw0v7Zxsv0L5M7BR9BGnSCyTTubhPCLK9FK4YdbQJG4=
+  skip_cleanup: true
+  draft: true
+  overwrite: true
+  file_glob: true
+  file: artifacts/dump-cat-*

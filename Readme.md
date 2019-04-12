@@ -11,7 +11,7 @@ cargo build --release
 
 ## Usage
 
-```bash
+```
 dump-cat 0.1.0
 gfreezy <gfreezy@gmail.com>
 Dump cat logviews.
