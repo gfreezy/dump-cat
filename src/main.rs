@@ -3,6 +3,7 @@ extern crate structopt;
 use std::convert::TryFrom;
 use std::path::PathBuf;
 
+use env_logger::Env;
 use evalexpr::*;
 use failure::Fallible;
 use structopt::StructOpt;
@@ -31,7 +32,7 @@ struct Opt {
 }
 
 fn main() -> Fallible<()> {
-    env_logger::init();
+    env_logger::from_env(Env::default().default_filter_or("warn")).init();
 
     let opt: Opt = Opt::from_args();
     let dumper = MessageTreeDumper::open(opt.path)?;

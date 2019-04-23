@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use failure::Fallible;
-use log::debug;
+use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 
 pub type MessageId = Text;
@@ -418,7 +418,7 @@ fn decode_transaction<T: Read>(
         name = "UploadMetric".to_string();
     }
 
-    let mut transaction = InnerTransaction::new(ty, name);
+    let mut transaction = InnerTransaction::new(ty.clone(), name.clone());
     transaction.timestamp_in_ms = ts;
 
     let mut t = Some(transaction);
@@ -429,10 +429,23 @@ fn decode_transaction<T: Read>(
         None => unreachable!(),
     };
     let status = read_string(buf)?;
-    let data = read_string(buf)?;
+    let data = read_bytes(buf)?;
     let duration_in_ms = read_varint(buf)?;
     transaction.status = status;
-    transaction.data = data;
+    let data_str = String::from_utf8(data);
+    match data_str {
+        Ok(s) => transaction.data = s,
+        Err(err) => {
+            transaction.data = String::from_utf8_lossy(err.as_bytes()).to_string();
+            warn!(
+                "Transaction \"{}.{}\" decoding utf8 error: bytes is \"{:?}\", lossy utf8 is \"{}\"",
+                &ty,
+                &name,
+                err.as_bytes(),
+                &transaction.data
+            );
+        }
+    }
     transaction.duration_in_ms = duration_in_ms;
 
     let rc_t = Rc::new(transaction);
@@ -558,6 +571,17 @@ fn read_string<T: Read>(buf: &mut T) -> Fallible<Text> {
     buf.read_exact(&mut b)?;
 
     Ok(String::from_utf8(b)?)
+}
+
+fn read_bytes<T: Read>(buf: &mut T) -> Fallible<Vec<u8>> {
+    let len = read_varint(buf)?;
+    if len == 0 {
+        return Ok(vec![]);
+    }
+    let mut b = vec![0; len as usize];
+    buf.read_exact(&mut b)?;
+
+    Ok(b)
 }
 
 /// https://developers.google.com/protocol-buffers/docs/encoding#varints
