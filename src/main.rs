@@ -21,7 +21,7 @@ struct Opt {
     #[structopt(
         short = "q",
         long = "query",
-        help = "variables: [status|ty|name|timestamp_in_ms|transaction.duration_in_ms|transaction.duration_start]"
+        help = "variables: [status|ty|name|timestamp_in_ms|transaction.duration_in_ms]"
     )]
     query: Option<String>,
     #[structopt(long = "json", help = "output as json")]
@@ -56,9 +56,6 @@ fn main() -> Fallible<()> {
                 "transaction.duration_in_ms".into(),
                 (duration as i64).into(),
             )?;
-        }
-        if let Some(start) = tree.message.duration_start() {
-            context.set_value("transaction.duration_start".into(), (start as i64).into())?;
         }
 
         let match_ret = if let Some(expr) = &precompiled {

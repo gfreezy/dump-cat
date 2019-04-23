@@ -49,7 +49,6 @@ pub struct InnerTransaction {
     pub data: Text,
     pub duration_in_ms: u64,
     pub children: Vec<Message>,
-    pub duration_start: u64,
 }
 
 impl InnerTransaction {
@@ -212,13 +211,6 @@ impl Message {
             _ => None,
         }
     }
-
-    pub fn duration_start(&self) -> Option<u64> {
-        match self {
-            Message::Transaction(e) => Some(e.duration_start),
-            _ => None,
-        }
-    }
 }
 
 impl Display for Message {
@@ -240,7 +232,6 @@ impl Display for Message {
                 .field("ty", &e.ty)
                 .field("name", &e.name)
                 .field("status", &e.status)
-                .field("duration_start", &e.duration_start)
                 .field("duration_in_ms", &e.duration_in_ms)
                 .field("data", &e.data)
                 .field(
@@ -430,7 +421,7 @@ fn decode_transaction<T: Read>(
     };
     let status = read_string(buf)?;
     let data = read_bytes(buf)?;
-    let duration_in_ms = read_varint(buf)?;
+    let duration_in_ms = read_varint(buf)? / 1000;
     transaction.status = status;
     let data_str = String::from_utf8(data);
     match data_str {
