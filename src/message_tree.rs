@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use failure::Fallible;
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 pub type MessageId = Text;
@@ -364,6 +365,9 @@ fn decode_header<T: Read>(tree: &mut MessageTree, buf: &mut T) -> Fallible<()> {
     tree.parent_message_id = read_string(buf)?;
     tree.root_message_id = read_string(buf)?;
     tree.session_token = read_string(buf)?;
+
+    debug!("decode header");
+
     Ok(())
 }
 
@@ -373,6 +377,8 @@ fn decode_message<T: Read>(
     buf: &mut T,
 ) -> Fallible<()> {
     let mut chs = [0];
+
+    debug!("start decode message: {:p}", tree);
 
     loop {
         let size = buf.read(&mut chs[..])?;
@@ -392,6 +398,8 @@ fn decode_message<T: Read>(
         }
     }
 
+    debug!("finish decode message: {:p}", tree);
+
     Ok(())
 }
 
@@ -400,6 +408,8 @@ fn decode_transaction<T: Read>(
     parent_transaction: &mut Option<InnerTransaction>,
     buf: &mut T,
 ) -> Fallible<()> {
+    debug!("start decode transaction: {:p}", tree);
+
     let ts = read_varint(buf)?;
     let ty = read_string(buf)?;
     let mut name = read_string(buf)?;
@@ -431,6 +441,7 @@ fn decode_transaction<T: Read>(
     }
     tree.add_transaction(rc_t);
 
+    debug!("finish decode transaction: {:p}", tree);
     Ok(())
 }
 
@@ -439,6 +450,8 @@ fn decode_event<T: Read>(
     parent_transaction: &mut Option<InnerTransaction>,
     buf: &mut T,
 ) -> Fallible<()> {
+    debug!("start decode event: {:p}", tree);
+
     let ts = read_varint(buf)?;
     let ty = read_string(buf)?;
     let name = read_string(buf)?;
@@ -453,6 +466,8 @@ fn decode_event<T: Read>(
     }
     tree.add_event(rc_e);
 
+    debug!("finish decode event: {:p}", tree);
+
     Ok(())
 }
 
@@ -461,6 +476,8 @@ fn decode_metric<T: Read>(
     parent_transaction: &mut Option<InnerTransaction>,
     buf: &mut T,
 ) -> Fallible<()> {
+    debug!("start decode metric: {:p}", tree);
+
     let ts = read_varint(buf)?;
     let ty = read_string(buf)?;
     let name = read_string(buf)?;
@@ -474,6 +491,7 @@ fn decode_metric<T: Read>(
     }
     tree.add_metric(rc_m);
 
+    debug!("finish decode metric: {:p}", tree);
     Ok(())
 }
 
@@ -482,6 +500,8 @@ fn decode_heartbeat<T: Read>(
     parent_transaction: &mut Option<InnerTransaction>,
     buf: &mut T,
 ) -> Fallible<()> {
+    debug!("start decode heartbeat: {:p}", tree);
+
     let ts = read_varint(buf)?;
     let ty = read_string(buf)?;
     let name = read_string(buf)?;
@@ -494,6 +514,7 @@ fn decode_heartbeat<T: Read>(
         t.add_child(Message::Heartbeat(rc_h.clone()));
     }
     tree.add_heartbeat(rc_h);
+    debug!("finish decode heartbeat: {:p}", tree);
 
     Ok(())
 }
@@ -503,6 +524,8 @@ fn decode_trace<T: Read>(
     parent_transaction: &mut Option<InnerTransaction>,
     buf: &mut T,
 ) -> Fallible<()> {
+    debug!("start decode trace: {:p}", tree);
+
     let ts = read_varint(buf)?;
     let ty = read_string(buf)?;
     let name = read_string(buf)?;
@@ -515,6 +538,7 @@ fn decode_trace<T: Read>(
         t.add_child(Message::Trace(rc_t.clone()));
     }
     tree.add_trace(rc_t);
+    debug!("finish decode trace: {:p}", tree);
 
     Ok(())
 }

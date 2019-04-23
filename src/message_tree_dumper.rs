@@ -57,9 +57,11 @@ impl MessageTreeIterator {
             }
             Some(b) => b,
         };
+        debug!("read next block: size: {}", snappy_block.len());
         let mut snappy_reader = SnappyReader::new(snappy_block);
         let _header = snappy_reader.read_header()?;
         self.snappy_reader = Some(snappy_reader);
+
         Ok(())
     }
 }
@@ -81,10 +83,13 @@ impl Iterator for MessageTreeIterator {
                     continue;
                 }
             };
+            debug!("read data from snappy reader: size: {}", message_buf.len());
             let tree =
                 MessageTree::decode(&mut message_buf.as_slice()).expect("decode message tree");
+            debug!("decode message tree");
             return Some(tree);
         }
+        debug!("finish read data");
         None
     }
 }
@@ -96,6 +101,7 @@ struct SnappyReader {
 
 impl SnappyReader {
     pub fn new(buf: Vec<u8>) -> Self {
+        debug!("new SnappyReader");
         SnappyReader {
             reader: Cursor::new(buf),
             buf: BytesMut::new(),
@@ -105,6 +111,7 @@ impl SnappyReader {
     pub fn read_header(&mut self) -> Fallible<Vec<u8>> {
         let mut snappy_magic_header = vec![0; 16];
         self.reader.read_exact(&mut snappy_magic_header)?;
+        debug!("read snappy header");
         Ok(snappy_magic_header)
     }
 
