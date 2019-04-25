@@ -35,6 +35,7 @@ ARGS:
 ```
 
 ![](example.png)
+![](perf.png)
 ## License
 
 Licensed under either of
