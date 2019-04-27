@@ -25,3 +25,5 @@ deploy:
   overwrite: true
   file_glob: true
   file: artifacts/dump-cat-*
+  on:
+    branch: master
