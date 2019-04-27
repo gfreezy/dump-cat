@@ -1,19 +1,18 @@
 use std::fs::File;
 use std::io::{BufReader, Cursor, Error, Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use std::{iter, thread};
 
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use bytes::BytesMut;
+use crossbeam::channel::{RecvTimeoutError, SendTimeoutError};
+use derive_builder::Builder;
 use failure::Fallible;
 use log::{debug, info};
 
 use crate::message_tree::{try_read_data, MessageTree};
-use crossbeam::channel::{RecvTimeoutError, SendTimeoutError};
-use std::time::Duration;
-
-use derive_builder::Builder;
 
 fn read_block(block: Vec<u8>) -> Vec<MessageTree> {
     let snappy_reader = SnappyReader::new(block);
@@ -34,6 +33,7 @@ pub struct MessageTreeDumper {
 }
 
 impl MessageTreeDumper {
+    #[allow(dead_code)]
     pub fn into_iter(self) -> impl Iterator<Item = MessageTree> {
         self.read_trees().into_iter()
     }

@@ -10,8 +10,12 @@ matrix:
       os: osx
     - name: Linux Build
       os: linux
+install:
+  - rustup component add rustfmt clippy
 script:
   - mkdir -p artifacts
+  - cargo fmt --all -- --check
+  - cargo clippy
   - cargo test --verbose --all
   - cargo build --release
   - cp target/release/dump-cat artifacts/dump-cat-$TRAVIS_OS_NAME
