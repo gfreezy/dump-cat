@@ -1,96 +1,115 @@
 use std::fs::File;
 use std::io::{BufReader, Cursor, Error, Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::{iter, thread};
 
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use bytes::BytesMut;
 use failure::Fallible;
-use log::debug;
+use log::{debug, info};
 
 use crate::message_tree::{try_read_data, MessageTree};
+use crossbeam::channel::{RecvTimeoutError, SendTimeoutError};
+use std::time::Duration;
 
+use derive_builder::Builder;
+
+fn read_block(block: Vec<u8>) -> Vec<MessageTree> {
+    let snappy_reader = SnappyReader::new(block);
+    let tree_reader = MessageTreeReader::new(snappy_reader);
+    tree_reader.into_iter().collect()
+}
+
+#[derive(Default, Builder, Debug)]
+#[builder(setter(into))]
 pub struct MessageTreeDumper {
-    file_reader: BufReader<File>,
+    path: PathBuf,
+    #[builder(default = "1")]
+    threads: usize,
+    #[builder(default = "10")]
+    block_reader_channel_buffer_size: usize,
+    #[builder(default = "10")]
+    tree_decoder_channel_buffer_size: usize,
 }
 
 impl MessageTreeDumper {
-    pub fn open(path: impl AsRef<Path>) -> Fallible<Self> {
-        let mut file_reader = BufReader::with_capacity(1024 * 1024, File::open(path)?);
-        let magic_number = file_reader.read_i32::<BigEndian>()?;
-        assert_eq!(magic_number, -1);
-        debug!("magic number: {}", magic_number);
-
-        Ok(MessageTreeDumper { file_reader })
-    }
-}
-
-impl IntoIterator for MessageTreeDumper {
-    type Item = MessageTree;
-    type IntoIter = MessageTreeIterator;
-
-    fn into_iter(self) -> Self::IntoIter {
-        MessageTreeIterator::new(self.file_reader)
-    }
-}
-
-pub struct MessageTreeIterator {
-    file_reader: BufReader<File>,
-    snappy_reader: Option<SnappyReader>,
-}
-
-impl MessageTreeIterator {
-    pub fn new(file_reader: BufReader<File>) -> Self {
-        let mut iterator = MessageTreeIterator {
-            file_reader,
-            snappy_reader: None,
-        };
-        iterator.read_next_block().expect("read next block");
-        iterator
+    pub fn into_iter(self) -> impl Iterator<Item = MessageTree> {
+        self.read_trees().into_iter()
     }
 
-    fn read_next_block(&mut self) -> Fallible<()> {
-        let snappy_block = match try_read_data(&mut self.file_reader)? {
-            None => {
-                self.snappy_reader = None;
-                return Ok(());
-            }
-            Some(b) => b,
-        };
-        debug!("read next block: size: {}", snappy_block.len());
-        let mut snappy_reader = SnappyReader::new(snappy_block);
-        let _header = snappy_reader.read_header()?;
-        self.snappy_reader = Some(snappy_reader);
+    pub fn read_trees(self) -> crossbeam::Receiver<MessageTree> {
+        let block_reader = MessageBlockReader::open(&self.path).expect("open message block reader");
+        let (block_sender, block_receiver) =
+            crossbeam::bounded(self.block_reader_channel_buffer_size);
+        let (tree_sender, tree_receiver) =
+            crossbeam::bounded(self.tree_decoder_channel_buffer_size);
 
-        Ok(())
-    }
-}
-
-impl Iterator for MessageTreeIterator {
-    type Item = MessageTree;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let snappy_reader = match &mut self.snappy_reader {
-                None => break,
-                Some(reader) => reader,
-            };
-            let message_buf = try_read_data(snappy_reader).expect("try read data");
-            let message_buf = match message_buf {
-                Some(buf) => buf,
-                None => {
-                    self.read_next_block().expect("read next block");
-                    continue;
+        thread::Builder::new()
+            .name("BlockReaderThread".to_string())
+            .spawn(move || {
+                for block in block_reader.into_iter() {
+                    let mut to_send = block;
+                    loop {
+                        let ret = block_sender.send_timeout(to_send, Duration::from_secs(5));
+                        to_send = match ret {
+                            // Send success, continue to send the next one.
+                            Ok(()) => break,
+                            // Send timeout. We retry it.
+                            Err(SendTimeoutError::Timeout(t)) => {
+                                info!("Reading blocks too fast.");
+                                t
+                            }
+                            // Receiver disconnected. Exit current thread.
+                            Err(SendTimeoutError::Disconnected(_)) => return,
+                        };
+                    }
                 }
-            };
-            debug!("read data from snappy reader: size: {}", message_buf.len());
-            let tree =
-                MessageTree::decode(&mut message_buf.as_slice()).expect("decode message tree");
-            debug!("decode message tree");
-            return Some(tree);
+            })
+            .expect("spawn error");
+
+        for i in 0..self.threads {
+            let block_receiver = block_receiver.clone();
+            let tree_sender = tree_sender.clone();
+
+            thread::Builder::new()
+                .name(format!("TreeDecoder{}", i))
+                .spawn(move || {
+                    loop {
+                        let block = match block_receiver.recv_timeout(Duration::from_millis(5)) {
+                            Ok(block) => block,
+                            Err(RecvTimeoutError::Timeout) => {
+                                info!("Waiting for new block");
+                                continue;
+                            }
+                            Err(RecvTimeoutError::Disconnected) => {
+                                break;
+                            }
+                        };
+                        for tree in read_block(block) {
+                            let mut to_send = tree;
+                            loop {
+                                let ret =
+                                    tree_sender.send_timeout(to_send, Duration::from_millis(5));
+                                to_send = match ret {
+                                    // Send success, continue to send the next one.
+                                    Ok(()) => break,
+                                    // Send timeout. We retry it.
+                                    Err(SendTimeoutError::Timeout(t)) => {
+                                        info!("Decoding too fast.");
+                                        t
+                                    }
+                                    // Receiver disconnected. Exit current thread.
+                                    Err(SendTimeoutError::Disconnected(_)) => return,
+                                };
+                            }
+                        }
+                    }
+                })
+                .expect("spawn error");
         }
-        debug!("finish read data");
-        None
+
+        tree_receiver
     }
 }
 
@@ -148,5 +167,55 @@ impl Read for SnappyReader {
         let b = self.buf.split_to(size);
         buf.write_all(&b)?;
         Ok(b.len())
+    }
+}
+
+pub struct MessageBlockReader {
+    file_reader: BufReader<File>,
+}
+
+impl MessageBlockReader {
+    pub fn open(path: impl AsRef<Path>) -> Fallible<Self> {
+        let mut file_reader = BufReader::with_capacity(1024 * 1024, File::open(path)?);
+        let magic_number = file_reader.read_i32::<BigEndian>()?;
+        assert_eq!(magic_number, -1);
+        debug!("magic number: {}", magic_number);
+
+        Ok(MessageBlockReader { file_reader })
+    }
+
+    pub fn into_iter(self) -> impl Iterator<Item = Vec<u8>> {
+        let mut f = self.file_reader;
+        iter::from_fn(move || try_read_data(&mut f).expect("try read data"))
+    }
+}
+
+struct MessageTreeReader {
+    snappy_reader: SnappyReader,
+}
+
+impl MessageTreeReader {
+    fn new(snapper_reader: SnappyReader) -> Self {
+        let mut reader = MessageTreeReader {
+            snappy_reader: snapper_reader,
+        };
+        let _header = reader
+            .snappy_reader
+            .read_header()
+            .expect("read snappy header");
+        reader
+    }
+
+    fn into_iter(self) -> impl Iterator<Item = MessageTree> {
+        let mut snappy_reader = self.snappy_reader;
+        iter::from_fn(move || {
+            let message_buf = try_read_data(&mut snappy_reader).expect("try read data");
+            let message_buf = message_buf?;
+            debug!("read data from snappy reader: size: {}", message_buf.len());
+            let tree =
+                MessageTree::decode(&mut message_buf.as_slice()).expect("decode message tree");
+            debug!("decode message tree");
+            Some(tree)
+        })
     }
 }
