@@ -12,7 +12,7 @@ cargo build --release
 ## Usage
 
 ```
-dump-cat 0.1.1
+dump-cat 0.1.2
 gfreezy <gfreezy@gmail.com>
 Dump cat logviews.
 
@@ -22,12 +22,18 @@ USAGE:
 FLAGS:
     -h, --help       Prints help information
         --json       output as json
+        --quiet      for benchmark only
     -V, --version    Prints version information
 
 OPTIONS:
-    -n, --number <num>     
-    -q, --query <query>    variables:
-                           [status|ty|name|timestamp_in_ms|transaction.duration_in_ms|transaction.duration_start]
+        --block-reader-channel-buffer-size <block_reader_channel_buffer_size>     [default: 10]
+        --decoding-threads <decoding_threads>                                     [default: 1]
+        --filter-threads <filter_threads>                                         [default: 1]
+    -n, --number <num>
+    -q, --query <query>
+            variables: [status|ty|name|timestamp_in_ms|transaction.duration_in_ms]
+
+        --tree-decoder-channel-buffer-size <tree_decoder_channel_buffer_size>     [default: 10]
 
 ARGS:
     <path>    Input file

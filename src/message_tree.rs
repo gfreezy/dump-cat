@@ -1,12 +1,12 @@
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use std::io::{Error, Read};
-use std::rc::Rc;
 
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use failure::Fallible;
 use log::{debug, warn};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 pub type MessageId = Text;
 pub type Text = String;
@@ -38,7 +38,7 @@ impl InnerEvent {
     }
 }
 
-pub type Event = Rc<InnerEvent>;
+pub type Event = Arc<InnerEvent>;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct InnerTransaction {
@@ -66,7 +66,7 @@ impl InnerTransaction {
     }
 }
 
-pub type Transaction = Rc<InnerTransaction>;
+pub type Transaction = Arc<InnerTransaction>;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct InnerHeartbeat {
@@ -95,7 +95,7 @@ impl InnerHeartbeat {
     }
 }
 
-pub type Heartbeat = Rc<InnerHeartbeat>;
+pub type Heartbeat = Arc<InnerHeartbeat>;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct InnerMetric {
@@ -124,7 +124,7 @@ impl InnerMetric {
     }
 }
 
-pub type Metric = Rc<InnerMetric>;
+pub type Metric = Arc<InnerMetric>;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct InnerTrace {
@@ -153,7 +153,7 @@ impl InnerTrace {
     }
 }
 
-pub type Trace = Rc<InnerTrace>;
+pub type Trace = Arc<InnerTrace>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Message {
@@ -270,7 +270,7 @@ impl Display for Message {
 
 impl Default for Message {
     fn default() -> Self {
-        Message::Transaction(Rc::new(InnerTransaction::default()))
+        Message::Transaction(Arc::new(InnerTransaction::default()))
     }
 }
 
@@ -439,7 +439,7 @@ fn decode_transaction<T: Read>(
     }
     transaction.duration_in_ms = duration_in_ms;
 
-    let rc_t = Rc::new(transaction);
+    let rc_t = Arc::new(transaction);
     if let Some(t) = parent_transaction {
         t.add_child(Message::Transaction(rc_t.clone()))
     }
@@ -464,7 +464,7 @@ fn decode_event<T: Read>(
 
     let event = InnerEvent::new(ty, name, ts, status, data);
 
-    let rc_e = Rc::new(event);
+    let rc_e = Arc::new(event);
     if let Some(t) = parent_transaction {
         t.add_child(Message::Event(rc_e.clone()));
     }
@@ -489,7 +489,7 @@ fn decode_metric<T: Read>(
     let data = read_string(buf)?;
 
     let metric = InnerMetric::new(ty, name, ts, status, data);
-    let rc_m = Rc::new(metric);
+    let rc_m = Arc::new(metric);
     if let Some(t) = parent_transaction {
         t.add_child(Message::Metric(rc_m.clone()));
     }
@@ -513,7 +513,7 @@ fn decode_heartbeat<T: Read>(
     let data = read_string(buf)?;
 
     let heartbeat = InnerHeartbeat::new(ty, name, ts, status, data);
-    let rc_h = Rc::new(heartbeat);
+    let rc_h = Arc::new(heartbeat);
     if let Some(t) = parent_transaction {
         t.add_child(Message::Heartbeat(rc_h.clone()));
     }
@@ -537,7 +537,7 @@ fn decode_trace<T: Read>(
     let data = read_string(buf)?;
 
     let trace = InnerTrace::new(ty, name, ts, status, data);
-    let rc_t = Rc::new(trace);
+    let rc_t = Arc::new(trace);
     if let Some(t) = parent_transaction {
         t.add_child(Message::Trace(rc_t.clone()));
     }
